@@ -306,13 +306,16 @@ String Controller::displayLCD1(){
     output += motor1.isActive() ? "OFF" : "ON ";
     output += " <   >";
   }
+  if(mode == MODE_MAN){
+    output += "    <   >";
+  }
   if(mode == MODE_SPEED){
-    output += speedDirty ? "SET" : "    ";
-    output += " -   +";
+    output += speedDirty ? "SET " : "    ";
+    output += "-   +";
   }
   if(mode == MODE_DELAY){
-    output += delayDirty ? "SET" : "    ";
-    output += " -   +";
+    output += delayDirty ? "SET " : "    ";
+    output += "-   +";
   }
   
   //output = "test";

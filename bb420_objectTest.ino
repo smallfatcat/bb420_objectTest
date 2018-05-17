@@ -56,7 +56,7 @@ void setup() {
   TCCR1B = 0b00001001;        // set prescalar to 1
   TIMSK1 |= 0b00000010;       // set for output compare interrupt
   //setMotorSpeed(manSpeed);
-  mainControl.motor1.setSpeed(300); 
+  mainControl.motor1.setSpeed(DEF_SPEED); 
   sei();                      // enables interrupts. Use cli() to turn them off
   
   // Setup LCD Module
