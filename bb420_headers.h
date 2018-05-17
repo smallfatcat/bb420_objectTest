@@ -19,6 +19,7 @@ class Motor {
     bool          isActive() {return active;}
     int           getPos() {return position;}
     int           getSpeed() {return speed;}
+    int           getPosinMM(){return (float)pulseCount * 0.02f;};
     int           getDir() {return direction;}
     int           setSpeed(int newSpeed);
     int           setDirection(int newDirection);
@@ -50,26 +51,49 @@ class Button {
     unsigned long debounceTimer = 0, debounceDelay = 50;
 };
 
+class BB420_timer {
+  public:
+    BB420_timer();
+    
+    bool delayOn();
+    bool startDelay();
+    
+    bool delayActive;
+    unsigned long delayStart;
+    unsigned long delayTime;
+  protected:
+  
+};
+
 class Controller {
   public:
-    Controller(int A, int B, int C, int D, int speed, int direction, unsigned long d);
+    Controller(int A, int B, int C, int D, int L1, int L2, int speed, int direction, unsigned long d);
+    
     bool getButtonStates();
     bool logic();
     int nextMode();
     bool serialOut();
     String displayLCD0();
     String displayLCD1();
+    
     Button butA;
     Button butB;
     Button butC;
     Button butD;
+    Button limit1;
+    Button limit2;
     Motor motor1;
+    BB420_timer BB_timer;
+    
     int mode;
-    unsigned long delayTime;
     unsigned long delayNew;
     bool delayDirty = false;
     int speedNew;
     boolean speedDirty = false;
+    boolean setMemFlag = false;
   protected:
     int state;
 };
+
+
+

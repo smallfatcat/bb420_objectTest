@@ -1,3 +1,4 @@
+#include <EEPROM.h>
 #include <Wire.h>
 #include <LCD.h>
 #include <LiquidCrystal_I2C.h> // includes the LiquidCrystal Library
@@ -18,12 +19,35 @@ LiquidCrystal_I2C  lcd(0x3F,2,1,0,4,5,6,7); // 0x27 is the I2C bus address for a
 #define buttonCPin 5
 #define buttonDPin 6
 
-Controller mainControl(buttonAPin, buttonBPin, buttonCPin, buttonDPin, 300, 0, 30);
+//Limit Pins
+#define leftLimitPin  A3
+#define rightLimitPin  A2
+
+//Defaults
+#define DEF_SPEED  300
+#define DEF_DIR    0
+#define DEF_DELAY  30
+
+
+Controller mainControl(buttonAPin, buttonBPin, buttonCPin, buttonDPin, leftLimitPin, rightLimitPin, DEF_SPEED, DEF_DIR, DEF_DELAY);
 
 // LCD vars
 String LCDbuffer0 = "";
 String LCDbuffer1 = "";
 int frameCount = 0;
+
+// Memory vars
+int defaultAutoSpeed = 314;
+int defaultManSpeed = 312;
+unsigned long defaultAutoDelay = 27;
+float memoryHash = 99.0f;
+
+struct memoryObject {
+  boolean isSet = true;
+  float hash = memoryHash;
+  int speed;
+  unsigned long delay;
+};
 
 void setup() {
   //setup Timer1
@@ -50,6 +74,16 @@ void setup() {
   Serial.println("Ready");
   mainControl.motor1.activate();
   mainControl.motor1.setDirection(1);
+
+  checkMemory();
+  delay(1000);
+  Serial.print("Stored Speed: ");
+  Serial.println(getMemory());
+  Serial.print("Stored Delay: ");
+  Serial.println(getMemoryDelay());
+
+  mainControl.motor1.setSpeed( getMemory() ) ;
+  mainControl.BB_timer.delayTime = getMemoryDelay();
 }
 
 void loop(){
@@ -57,6 +91,12 @@ void loop(){
   
   //mainControl.getButtonStates();
   mainControl.logic();
+  
+  // Store new memory if flag set
+  if(mainControl.setMemFlag){
+    mainControl.setMemFlag = false;
+    setMemory( mainControl.motor1.getSpeed(), mainControl.BB_timer.delayTime);
+  }
   //mainControl.serialOut();
   //mainControl.motor1.serialOut();
 
@@ -96,18 +136,57 @@ ISR(TIMER1_COMPA_vect) {
     }
   }
 }
-/*
-void setMotorSpeed(int newMotorSpeed){
-  long timerCount = 16000000/newMotorSpeed - 1;
-  if(timerCount < 65536){ 
-    loopCount = 0;
-    targetLoopCount = loopCount;
-    OCR1A = timerCount;
+
+void setMemory(int speedToSet, unsigned long delayToSet){
+  int eeAddress = 0; //Move to start
+  memoryObject memoryVar;
+  EEPROM.get(eeAddress, memoryVar);
+  if((speedToSet != memoryVar.speed)||(delayToSet != memoryVar.delay)){
+    Serial.print("memory set to: ");
+    Serial.println(speedToSet);
+    Serial.print("delay set to: ");
+    Serial.println(delayToSet);
+   //Data to store.
+    memoryObject memoryVarToStore;
+    memoryVarToStore.isSet = true;
+    memoryVarToStore.hash = memoryHash;
+    memoryVarToStore.speed = speedToSet;
+    memoryVarToStore.delay = delayToSet;
+    EEPROM.put(eeAddress, memoryVarToStore);
   }
   else{
-    loopCount = floor(timerCount / 65535);
-    targetLoopCount = loopCount;
-    OCR1A = round(timerCount / (loopCount+1));
+    Serial.print("memory not set to: ");
+    Serial.println(speedToSet);
+    Serial.print("delay not set to: ");
+    Serial.println(delayToSet);
   }
 }
-*/
+
+int getMemory(){
+  int eeAddress = 0; //Move to start
+  memoryObject memoryVar;
+  EEPROM.get(eeAddress, memoryVar);
+  return memoryVar.speed;
+}
+
+unsigned long getMemoryDelay(){
+  int eeAddress = 0; //Move to start
+  memoryObject memoryVar;
+  EEPROM.get(eeAddress, memoryVar);
+  return memoryVar.delay;
+}
+
+void checkMemory(){
+  int eeAddress = 0;
+  memoryObject memoryVar;
+  EEPROM.get(eeAddress, memoryVar);
+  if(memoryVar.hash != memoryHash){
+    memoryObject memoryVarToStore;
+    memoryVarToStore.isSet = true;
+    memoryVarToStore.hash = memoryHash;
+    memoryVarToStore.speed = defaultAutoSpeed;
+    memoryVarToStore.delay = defaultAutoDelay;
+    eeAddress = 0;
+    EEPROM.put(eeAddress, memoryVarToStore);
+  }
+}

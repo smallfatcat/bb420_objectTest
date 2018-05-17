@@ -122,15 +122,19 @@ bool Button::updateButton(){
 //*********************************************************************
 // Controller Methods
 
-Controller::Controller (int A, int B, int C, int D, int speed, int direction, unsigned long d) {
+Controller::Controller (int A, int B, int C, int D, int L1, int L2, int speed, int direction, unsigned long d) {
   mode = 0;
-  delayTime = d;
   butA.buttonInit(A);
   butB.buttonInit(B);
   butC.buttonInit(C);
   butD.buttonInit(D);
+  limit1.buttonInit(L1);
+  limit2.buttonInit(L2);
   motor1.setSpeed(speed);
   motor1.setDirection(direction);
+  BB_timer.delayActive = false;
+  BB_timer.delayStart = millis();
+  BB_timer.delayTime = d;
 }
 
 bool Controller::getButtonStates() {
@@ -168,10 +172,14 @@ bool Controller::logic(){
   bool B = butB.updateButton();
   bool C = butC.updateButton();
   bool D = butD.updateButton();
+  bool L1 = limit1.updateButton();
+  bool L2 = limit2.updateButton();
   int Astate = butA.state();
   int Bstate = butB.state();
   int Cstate = butC.state();
   int Dstate = butD.state();
+  int L1state = limit1.state();
+  int L2state = limit2.state();
 
   if(mode != MODE_AUTO){
     motor1.deactivate();
@@ -179,7 +187,7 @@ bool Controller::logic(){
   if(A){
     nextMode();
     if(mode == MODE_DELAY){
-      delayNew = delayTime;
+      delayNew = BB_timer.delayTime;
       delayDirty = false;
     }
     if(mode == MODE_SPEED){
@@ -226,6 +234,7 @@ bool Controller::logic(){
     if(B && speedDirty){
       speedDirty = false;
       motor1.setSpeed( speedNew );
+      setMemFlag = true;
     }
     if(C){
       speedNew--;
@@ -240,7 +249,8 @@ bool Controller::logic(){
   else if(mode == MODE_DELAY){
     if(B && delayDirty){
       delayDirty = false;
-      delayTime = delayNew;
+      BB_timer.delayTime = delayNew;
+      setMemFlag = true;
     }
     if(C){
       delayNew--;
@@ -269,14 +279,14 @@ bool Controller::serialOut(){
 String Controller::displayLCD0(){
  String output;
   if(mode == MODE_AUTO){
-    output = "Auto: ";
+    output = "Auto ";
     output += motor1.getDir() ? ">" : "<";
-    output += "   x: " + (String)motor1.pulseCount;
+    output += " " + String(motor1.getPosinMM()) + "mm";
   }
   if(mode == MODE_MAN){
-    output = "Manual: ";
+    output = "Man  ";
     output += motor1.getDir() ? ">" : "<";
-    output += " x: " + (String)motor1.pulseCount;
+    output += " " + String(motor1.getPosinMM()) + "mm";
   }
   if(mode == MODE_SPEED){
     output = "Speed: ";
@@ -309,3 +319,31 @@ String Controller::displayLCD1(){
   //output = (String)motor1.pulseCount;
   return output;
 }
+
+BB420_timer::BB420_timer(){
+  delayActive = false;
+  delayStart = millis();
+  delayTime = 30;   
+}
+
+bool BB420_timer::delayOn(){
+  bool returnValue = false;
+  if(delayActive){
+    if( (delayStart+(delayTime*1000)) < millis() ){
+      returnValue = false;
+      delayActive = false;
+    }
+    else{
+      returnValue = true;
+    }
+  }
+  return returnValue;
+}
+
+bool BB420_timer::startDelay(){
+  delayActive = true;
+  delayStart = millis();
+  return true;
+}
+
+
